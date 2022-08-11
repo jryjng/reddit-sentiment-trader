@@ -1,6 +1,6 @@
 import alpaca_trade_api as alpaca
 import requests, yfinance
-import math, json, os, datetime
+import math, json, os, datetime, sys
 
 # TODO: max out equity percentage (partially implemented)
 # TODO: multiday calling 
@@ -279,3 +279,11 @@ def apeAlgorithm(ALPACA_API_KEY, ALPACA_SECRET_KEY, debugFlag):
 # Gets called by AWS
 def main(event, context):
     return apeAlgorithm(os.environ["ALPACA_API_KEY"], os.environ["ALPACA_SECRET_KEY"], False)
+
+
+if __name__ == '__main__':
+    print("Note: called from command line")
+    if len(sys.argv) != 3:
+        print("Usage: handler.py <alpaca api key> <alpaca secret key>")
+    else:
+        apeAlgorithm(sys.argv[1], sys.argv[2], False)
