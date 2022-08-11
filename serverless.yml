@@ -1,0 +1,17 @@
+service: ape1-trader
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.8
+  environment:
+    ALPACA_API_KEY: ${env:ALPACA_API_KEY}
+    ALPACA_SECRET_KEY: ${env:ALPACA_SECRET_KEY}
+
+
+functions:
+  main:
+    handler: handler.main
+    events:
+        # https://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html#CronExpressions
+      - schedule: cron(35 13 ? * MON-FRI *) 
