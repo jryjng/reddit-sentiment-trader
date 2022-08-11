@@ -16,3 +16,4 @@ Trades are made through alpaca using alpaca REST api. Deployed on AWS to run eve
 
 ##### Run
 `python3 handler.py <alpaca api key> <alpaca secret key>`
+By default, this uses a paper account
