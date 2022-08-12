@@ -21,9 +21,9 @@ MAX_POSITION_PERCENT = 0.5
 boomerStocks = ["SPY", "QQQ", "TQQQ", "UVXY", "SQQQ"]
 
 
-# https://github.com/alpacahq/alpaca-trade-api-python/
-# Return a float x<0.3 indicating the percent based on the
-def getStockVal(mentions, mention_growth, stock_change):    
+# This function calculates the percent (from 0 to 1) of 
+# available BP to allocate to the stock
+def getStockVal(mentions, mention_growth, stock_change, flags):    
     # If monday change growth behavior
     if datetime.datetime.now().weekday() == 0:
         if mentions < 250:
@@ -32,14 +32,18 @@ def getStockVal(mentions, mention_growth, stock_change):
             mention_growth = min(10, mention_growth/2)
     else:
         mention_growth = min(10, mention_growth)
-    
+
+    # Strategy: always consider the highest performing memestock
+    if (flags and mention_growth <= 0.5 and stock_change >= 0):
+        return 0.05;
+
     # Throw out bad fits
-    if stock_change <= -0.1 or mention_growth < 0.5:
+    if stock_change <= -0.1 or mention_growth <= 0.5:
         return 0
 
     # This function is a hack
     # Emphasize mentions more - but growth is important at high mentions
-    return (round(min(30, ((mentions / 125) ** 0.5) 
+    return (round(min(35, ((mentions / 100) ** 0.5) 
     * math.log(mention_growth * 100 - 50, 2))))/100.0
 
 
@@ -111,7 +115,7 @@ def apeFactory(ape):
             "price_growth" : price_growth
         }
     except:
-        print("ERROR: Stock not supported (apefactory)")
+        print("ERROR: Stock not supported (apefactory)", ape["ticker"])
         return 0
 
 
@@ -181,7 +185,7 @@ def sellRoutine(alpaca_api, account, ape_list, debugFlag):
         # If sell, then print the reason, blacklist the stock, and sell it
         if apeInfo == None:
             print("Sell reason: No apeinfo")
-            boomerStocks.append(apeInfo["ticker"])
+            boomerStocks.append(position.symbol)
             sellPosition(alpaca_api, position, debugFlag)
         elif apeInfo["mentions_growth"] <= MENTION_GROWTH_SELL:
             print("Sell reason: Decline in mentions")
@@ -225,7 +229,7 @@ def buyRoutine(alpaca_api, ape_list, account, debugFlag):
         # Use getStockVal to evaluate the function
         # stockVal is the percentage of pp to use
         stockVal = getStockVal(apeInfo["mentions"], apeInfo["mentions_growth"], 
-        apeInfo["price_growth"])
+        apeInfo["price_growth"], int(ape["rank"]) == 1)
 
         # DEBUG: print
         print("Buy analysis:", ape["ticker"], apeInfo["mentions"], apeInfo["mentions_growth"], 
@@ -280,10 +284,10 @@ def apeAlgorithm(ALPACA_API_KEY, ALPACA_SECRET_KEY, debugFlag):
 def main(event, context):
     return apeAlgorithm(os.environ["ALPACA_API_KEY"], os.environ["ALPACA_SECRET_KEY"], False)
 
-
 if __name__ == '__main__':
     print("Note: called from command line")
     if len(sys.argv) != 3:
         print("Usage: handler.py <alpaca api key> <alpaca secret key>")
     else:
         apeAlgorithm(sys.argv[1], sys.argv[2], False)
+
