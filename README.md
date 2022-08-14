@@ -58,7 +58,7 @@ f. Stock has not recently declined (<-10% change in 24hr)
 g. Stock has recent growth in mentions (50% or greater)
 
 
-If a stock meets the above criterion, the stock is evaluated based on its mentions and mention_growth. The function returns [0, 0.35] which is the proportional of purchasing power to buy the stock i.e. use 35% of purchasing power at maximum. The function used has a higher rate of growth of mentions vs mention_growth. The #1 most mentioned stock will always be bought as long as it has not fallen recently.
+If a stock meets the above criterion, the stock is evaluated based on its mentions and mention_growth. The function returns [0, 0.35] which is the proportional of purchasing power to buy the stock i.e. use 35% of purchasing power at maximum. The function used has a higher rate of growth of mentions vs mention_growth. mention_growth is also capped. The behavior of mention_growth is also adjusted on Mondays. The #1 most mentioned stock will always be bought as long as it has not fallen recently. 
 
 If the dollar amount to buy is higher than the minimum amount, the stock is bought.
 
