@@ -63,4 +63,5 @@ If a stock meets the above criterion, the stock is evaluated based on its mentio
 If the dollar amount to buy is higher than the minimum amount, the stock is bought.
 
 The program is ran every trading day 5 minutes after market opens. The account uses 2x margin. 
+
 Note: the constants and function described here can be easily changed by modifying the constants and function.
