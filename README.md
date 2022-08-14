@@ -9,7 +9,7 @@ Trades are made through alpaca using alpaca REST api. Deployed on AWS to run eve
 * yfinance
 
 
-
+ 
 ### To run:
 
 ##### Install dependencies
