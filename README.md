@@ -8,6 +8,8 @@ Trades are made through alpaca using alpaca REST api. Deployed on AWS to run eve
 * alpaca_trade_api 
 * yfinance
 
+
+
 #### To run:
 
 ##### Install dependencies
@@ -15,12 +17,16 @@ Trades are made through alpaca using alpaca REST api. Deployed on AWS to run eve
 
 `pip install yfinance`
 
+
+
 ##### Run
 `python3 handler.py <alpaca api key> <alpaca secret key>`
 
 
+
 #### Strategy
 1. Sell:
+
 a. Can't find stock information
 
 b. Decline in mentions (<0% change in mentions in 24hr)
@@ -28,6 +34,7 @@ b. Decline in mentions (<0% change in mentions in 24hr)
 c. Decline in stock (<-10% change in the last 24hr)
 
 d. Decline in position (<-10% change in position)
+
 
 
 2. Buy:
