@@ -4,13 +4,13 @@ Automated stock trader based on reddit user mentions and sentiment
 Uses [Ape Wisdom API](https://apewisdom.io/) for reddit stock information and yfinance for stock data.
 Trades are made through alpaca using alpaca REST api. Deployed on AWS to run every trading day.
 
-#### Dependencies:
+### Dependencies:
 * alpaca_trade_api 
 * yfinance
 
 
 
-#### To run:
+### To run:
 
 ##### Install dependencies
 `pip install alpaca_trade_api`
@@ -19,13 +19,15 @@ Trades are made through alpaca using alpaca REST api. Deployed on AWS to run eve
 
 
 
-##### Run
+### Run
 `python3 handler.py <alpaca api key> <alpaca secret key>`
 
 
 
-#### Strategy
-1. Sell:
+### Strategy
+
+
+#### Sell:
 
 a. Can't find stock information
 
@@ -37,7 +39,7 @@ d. Decline in position (<-10% change in position)
 
 
 
-2. Buy:
+#### Buy:
 
 Stocks are evaluated from the highest number of mentions to lowest.
 
