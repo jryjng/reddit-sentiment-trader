@@ -3,7 +3,7 @@ import requests, yfinance
 import math, json, os, datetime, sys
 
 # TODO: max out equity percentage (partially implemented)
-# TODO: multiday calling 
+# TODO: multiday calling (req. amazon efs or database)
 # TODO: add crypto support
 # TODO: analytics
 
@@ -11,15 +11,15 @@ import math, json, os, datetime, sys
 MIN_MENTIONS = 25
 MIN_PURCHASE_PERCENT = 0.05
 MIN_PURCHASE_RAW = 2500
+PLPC_PROFIT = 0.5
 PLPC_SELL = -0.1
 MENTION_GROWTH_SELL = 0
-PRICE_GROWTH_SELL = -0.1
 MIN_SENTIMENT = 0.5
 MAX_POSITION_PERCENT = 0.5
+TRAILING_SELL_PERCENT= 0.1
 
 # Blacklisted stocks
 boomerStocks = ["SPY", "QQQ", "TQQQ", "UVXY", "SQQQ"]
-
 
 # This function calculates the percent (from 0 to 1) of 
 # available BP to allocate to the stock
@@ -27,14 +27,14 @@ def getStockVal(mentions, mention_growth, stock_change, flags):
     # If monday change growth behavior
     if datetime.datetime.now().weekday() == 0:
         if mentions < 250:
-            mention_growth = min(5, mention_growth/2)
+            mention_growth = min(5, mention_growth * 0.5)
         else:
-            mention_growth = min(10, mention_growth/2)
+            mention_growth = min(10, mention_growth * 0.5)
     else:
         mention_growth = min(10, mention_growth)
 
     # Strategy: always consider the highest performing memestock
-    if (flags and mention_growth <= 0.5 and stock_change >= 0):
+    if (flags and mention_growth <= 0.5 and stock_change >= -0.1):
         return 0.05;
 
     # Throw out bad fits
@@ -43,7 +43,7 @@ def getStockVal(mentions, mention_growth, stock_change, flags):
 
     # This function is a hack
     # Emphasize mentions more - but growth is important at high mentions
-    return (round(min(35, ((mentions / 100) ** 0.5) 
+    return (round(min(40, ((mentions / 75) ** 0.5) 
     * math.log(mention_growth * 100 - 50, 2))))/100.0
 
 
@@ -64,6 +64,29 @@ def sellPosition(alpaca_api, position, debugFlag):
     return 1
 
 
+# Initiate a trailing stop order for the entire position
+def trailingStopSell(alpaca_api, position, debugFlag):
+    return trailingStopSell(alpaca_api, position.symbol, position.qty, debugFlag)
+
+
+def trailingStopSell(alpaca_api, name, amount, debugFlag):
+    print("Initiated trailing stop for " + name)
+    
+    if debugFlag:
+        return 0
+    
+    alpaca_api.submit_order(
+        symbol=name,
+        qty=amount,
+        side="sell",
+        type="trailing_stop",
+        time_in_force="gtc",
+        trail_price=str(TRAILING_SELL_PERCENT),
+    )
+
+    return 1
+
+
 # Buy a position
 def buyPosition(alpaca_api, amount, apeInfo, debugFlag):
     print("Buying " + apeInfo["ticker"] + ":", amount, "shares;", "$" + str(round(amount*apeInfo["price"], 3)))
@@ -78,6 +101,8 @@ def buyPosition(alpaca_api, amount, apeInfo, debugFlag):
         type="market",
         time_in_force="day",
     )
+    
+    trailingStopSell(alpaca_api, apeInfo["ticker"], amount, debugFlag)
     return 1
 
 
@@ -191,8 +216,8 @@ def sellRoutine(alpaca_api, account, ape_list, debugFlag):
             print("Sell reason: Decline in mentions")
             boomerStocks.append(apeInfo["ticker"])
             sellPosition(alpaca_api, position, debugFlag)
-        elif apeInfo["price_growth"] < PRICE_GROWTH_SELL:
-            print("Sell reason: Recent price decline")
+        elif float(position.unrealized_plpc) > PLPC_PROFIT:
+            print("Sell reason: Profit Threshold")
             boomerStocks.append(apeInfo["ticker"])
             sellPosition(alpaca_api, position, debugFlag)
         elif float(position.unrealized_plpc) < PLPC_SELL:
@@ -205,7 +230,7 @@ def sellRoutine(alpaca_api, account, ape_list, debugFlag):
             print(apeInfo["ticker"] + " BP allocation: " + str(position_percent) + "%")
             if position_percent > MAX_POSITION_PERCENT:
                 boomerStocks.append(apeInfo["ticker"])
-
+            
 # Buy
 def buyRoutine(alpaca_api, ape_list, account, debugFlag):
     # Try buying
@@ -283,6 +308,7 @@ def apeAlgorithm(ALPACA_API_KEY, ALPACA_SECRET_KEY, debugFlag):
 # Gets called by AWS
 def main(event, context):
     return apeAlgorithm(os.environ["ALPACA_API_KEY"], os.environ["ALPACA_SECRET_KEY"], False)
+
 
 if __name__ == '__main__':
     print("Note: called from command line")
