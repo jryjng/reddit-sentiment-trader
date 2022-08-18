@@ -33,10 +33,11 @@ a. Can't find stock information
 
 b. Decline in mentions (<0% change in mentions in 24hr)
 
-c. Decline in stock (<-10% change in the last 24hr)
+c. Trailing stop decline in stock (<-10%)
 
-d. Decline in position (<-10% change in position)
+d. Overall Decline in position (<-10% change in position)
 
+e. Profitability Threshold (>40%)
 
 
 #### Buy:
