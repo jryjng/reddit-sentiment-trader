@@ -1,6 +1,7 @@
 import alpaca_trade_api as alpaca
 import requests, yfinance
 import math, json, os, datetime, sys
+from time import sleep
 
 # TODO: max out equity percentage (partially implemented)
 # TODO: multiday calling (req. amazon efs or database)
@@ -16,7 +17,8 @@ PLPC_SELL = -0.1
 MENTION_GROWTH_SELL = 0
 MIN_SENTIMENT = 0.5
 MAX_POSITION_PERCENT = 0.5
-TRAILING_SELL_PERCENT= 0.1
+TRAILING_SELL_PERCENT= 10
+MIN_POSITION_VALUE = 500
 
 # Blacklisted stocks
 boomerStocks = ["SPY", "QQQ", "TQQQ", "UVXY", "SQQQ"]
@@ -43,7 +45,7 @@ def getStockVal(mentions, mention_growth, stock_change, flags):
 
     # This function is a hack
     # Emphasize mentions more - but growth is important at high mentions
-    return (round(min(40, ((mentions / 75) ** 0.5) 
+    return (round(min(40, ((mentions / 100) ** 0.5) 
     * math.log(mention_growth * 100 - 50, 2))))/100.0
 
 
@@ -65,23 +67,22 @@ def sellPosition(alpaca_api, position, debugFlag):
 
 
 # Initiate a trailing stop order for the entire position
-def trailingStopSell(alpaca_api, position, debugFlag):
-    return trailingStopSell(alpaca_api, position.symbol, position.qty, debugFlag)
-
-
 def trailingStopSell(alpaca_api, name, amount, debugFlag):
     print("Initiated trailing stop for " + name)
     
     if debugFlag:
         return 0
     
+    # Does it need time to register that the order was put in place?
+    sleep(1)
+
     alpaca_api.submit_order(
         symbol=name,
-        qty=amount,
+        qty=int(amount),
         side="sell",
         type="trailing_stop",
         time_in_force="gtc",
-        trail_price=str(TRAILING_SELL_PERCENT),
+        trail_percent=str(TRAILING_SELL_PERCENT),
     )
 
     return 1
@@ -105,6 +106,13 @@ def buyPosition(alpaca_api, amount, apeInfo, debugFlag):
     trailingStopSell(alpaca_api, apeInfo["ticker"], amount, debugFlag)
     return 1
 
+
+# Cancel an order
+def cancelOrder(alpaca_api, orders, ticker):
+    for order in orders:
+        if order.symbol == ticker:
+            print("Cancelling order...")
+            alpaca_api.cancel_order(order.id)
 
 # Return an ape object: name, price, mentions, mentions_growth, price_growth
 # Percentages are fractional values i.e. 100%=1
@@ -191,6 +199,8 @@ def getSentiment(ticker):
 # Sell
 def sellRoutine(alpaca_api, account, ape_list, debugFlag):
     positions = alpaca_api.list_positions()
+    orders = alpaca_api.list_orders()
+
 
     # Try selling
     for position in positions:
@@ -207,23 +217,34 @@ def sellRoutine(alpaca_api, account, ape_list, debugFlag):
                 position.unrealized_plpc, position.market_value)
 
         # Evaluate if should sell or not
-        # If sell, then print the reason, blacklist the stock, and sell it
+        # If sell, then print the reason, blacklist the stock, cancel any previous sell orders, and sell it
         if apeInfo == None:
             print("Sell reason: No apeinfo")
             boomerStocks.append(position.symbol)
+            cancelOrder(alpaca_api, orders, position.symbol)
             sellPosition(alpaca_api, position, debugFlag)
         elif apeInfo["mentions_growth"] <= MENTION_GROWTH_SELL:
             print("Sell reason: Decline in mentions")
             boomerStocks.append(apeInfo["ticker"])
+            cancelOrder(alpaca_api, orders, position.symbol)
             sellPosition(alpaca_api, position, debugFlag)
         elif float(position.unrealized_plpc) > PLPC_PROFIT:
             print("Sell reason: Profit Threshold")
             boomerStocks.append(apeInfo["ticker"])
+            cancelOrder(alpaca_api, orders, position.symbol)
             sellPosition(alpaca_api, position, debugFlag)
         elif float(position.unrealized_plpc) < PLPC_SELL:
             print("Sell reason: Unprofitability")
             boomerStocks.append(apeInfo["ticker"])
+            cancelOrder(alpaca_api, orders, position.symbol)
             sellPosition(alpaca_api, position, debugFlag)
+        elif float(position.market_value) < MIN_POSITION_VALUE:
+            print("Sell reason: Minimum Positional Value")
+            cancelOrder(alpaca_api, orders, position.symbol)
+            sellPosition(alpaca_api, position, debugFlag)
+            # This could cause unintended effects, 
+            # but may be necessary to prevent day trading
+            boomerStocks.append(apeInfo["ticker"])
         else:
             # Check stock relative to portfolio value
             position_percent = float(position.market_value) / (float(account.multiplier) * float(account.equity))
@@ -231,8 +252,12 @@ def sellRoutine(alpaca_api, account, ape_list, debugFlag):
             if position_percent > MAX_POSITION_PERCENT:
                 boomerStocks.append(apeInfo["ticker"])
             
+        
+            
 # Buy
 def buyRoutine(alpaca_api, ape_list, account, debugFlag):
+    # Orderlist
+
     # Try buying
     for ape in ape_list:
         # Don't buy boring boomer stocks
