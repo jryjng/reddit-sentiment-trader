@@ -19,6 +19,7 @@ MIN_SENTIMENT = 0.5
 MAX_POSITION_PERCENT = 0.5
 TRAILING_SELL_PERCENT= 10
 MIN_POSITION_VALUE = 500
+MIN_CASH = 1000
 
 # Blacklisted stocks
 boomerStocks = ["SPY", "QQQ", "TQQQ", "UVXY", "SQQQ"]
@@ -149,7 +150,7 @@ def apeFactory(ape):
         }
     except:
         print("ERROR: Stock not supported (apefactory)", ape["ticker"])
-        return 0
+        return None
 
 
 # Adjust the stock amount based on fractionability
@@ -268,7 +269,7 @@ def buyRoutine(alpaca_api, ape_list, account, debugFlag):
         apeInfo = apeFactory(ape)
 
         # Stock not supported
-        if apeInfo == 0:
+        if apeInfo == None:
             continue;
 
         # Stock if mentions falls below threshold
@@ -288,9 +289,9 @@ def buyRoutine(alpaca_api, ape_list, account, debugFlag):
         # Think about buying $rawBuying amount of the assest
         if stockVal > 0:
             stocks_to_buy = roundStockPrice(alpaca_api, apeInfo["ticker"], apeInfo["price"], 
-            stockVal * float(account.buying_power))
+            stockVal * max(float(account.buying_power) - MIN_CASH, 0))
             rawAmount = stocks_to_buy * apeInfo["price"]
-
+            print("Thinking about buying...", rawAmount)
             # Minimum buying amount
             if rawAmount > MIN_PURCHASE_PERCENT * (float(account.multiplier) * float(account.equity)) or rawAmount > MIN_PURCHASE_RAW:
                 # Last check for sentiment
@@ -333,7 +334,6 @@ def apeAlgorithm(ALPACA_API_KEY, ALPACA_SECRET_KEY, debugFlag):
 # Gets called by AWS
 def main(event, context):
     return apeAlgorithm(os.environ["ALPACA_API_KEY"], os.environ["ALPACA_SECRET_KEY"], False)
-
 
 if __name__ == '__main__':
     print("Note: called from command line")
